@@ -5,15 +5,15 @@ import logging
 import discord
 from discord.ext import commands
 
-from app.db.repo import Repository
-from app.services.temp_voice import TempVoiceService
+from app.features.temp_voice.repo import TempVoiceRepository
+from app.features.temp_voice.service import TempVoiceService
 
 
 logger = logging.getLogger(__name__)
 
 
 class ReconcileService:
-    def __init__(self, bot: commands.Bot, repo: Repository, temp_voice_service: TempVoiceService) -> None:
+    def __init__(self, bot: commands.Bot, repo: TempVoiceRepository, temp_voice_service: TempVoiceService) -> None:
         self._bot = bot
         self._repo = repo
         self._temp_voice_service = temp_voice_service

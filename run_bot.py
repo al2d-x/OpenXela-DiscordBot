@@ -1,11 +1,11 @@
 from app.core.config import get_settings, require_discord_token
 from app.core.logging import setup_logging
 from app.db.connect import init_db
-from app.db.repo import Repository
 from app.discord.bot import build_bot
-from app.discord.events import register_event_handlers
-from app.services.reconcile import ReconcileService
-from app.services.temp_voice import TempVoiceService
+from app.features.temp_voice.events import register_event_handlers
+from app.features.temp_voice.reconcile import ReconcileService
+from app.features.temp_voice.repo import TempVoiceRepository
+from app.features.temp_voice.service import TempVoiceService
 
 
 def main() -> None:
@@ -14,11 +14,13 @@ def main() -> None:
     setup_logging(settings.log_level)
     init_db(settings.sqlite_path)
 
-    repo = Repository(settings.sqlite_path)
-    bot = build_bot(settings, repo)
-    temp_voice_service = TempVoiceService(bot, repo, settings.delete_delay_seconds)
-    reconcile_service = ReconcileService(bot, repo, temp_voice_service)
-    register_event_handlers(bot, repo, temp_voice_service, reconcile_service)
+    temp_voice_repo = TempVoiceRepository(settings.sqlite_path)
+    bot = build_bot(settings, temp_voice_repo)
+    temp_voice_service = TempVoiceService(bot, temp_voice_repo, settings.delete_delay_seconds)
+    reconcile_service = ReconcileService(bot, temp_voice_repo, temp_voice_service)
+    register_event_handlers(
+        bot, temp_voice_repo, temp_voice_service, reconcile_service, settings.dev_guild_id
+    )
 
     bot.run(token)
 

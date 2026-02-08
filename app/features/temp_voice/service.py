@@ -7,19 +7,20 @@ from datetime import UTC, datetime, timedelta
 import discord
 from discord.ext import commands
 
-from app.db.repo import Repository
-from app.discord.naming import owner_room_name
+from app.features.temp_voice.repo import TempVoiceRepository
+from app.features.temp_voice.naming import owner_room_name
 
 
 logger = logging.getLogger(__name__)
 
 
 class TempVoiceService:
-    def __init__(self, bot: commands.Bot, repo: Repository, delete_delay_seconds: int = 30) -> None:
+    def __init__(self, bot: commands.Bot, repo: TempVoiceRepository, delete_delay_seconds: int = 30) -> None:
         self._bot = bot
         self._repo = repo
         self._delete_delay_seconds = delete_delay_seconds
         self._delete_tasks: dict[int, asyncio.Task[None]] = {}
+        self._join_times: dict[int, dict[int, datetime]] = {}
 
     async def handle_join_hub(self, member: discord.Member, hub_channel: discord.VoiceChannel) -> None:
         if member.bot:
@@ -66,6 +67,63 @@ class TempVoiceService:
             return
 
         self.cancel_deletion(channel.id)
+
+    def record_member_join(self, channel: discord.VoiceChannel, member: discord.Member) -> None:
+        if member.bot:
+            return
+        joined_at = datetime.now(UTC)
+        per_channel = self._join_times.setdefault(channel.id, {})
+        per_channel[member.id] = joined_at
+
+    def record_member_leave(self, channel: discord.VoiceChannel, member: discord.Member) -> None:
+        per_channel = self._join_times.get(channel.id)
+        if not per_channel:
+            return
+        per_channel.pop(member.id, None)
+        if not per_channel:
+            self._join_times.pop(channel.id, None)
+
+    async def handle_owner_left(self, channel: discord.VoiceChannel, owner_id: int) -> None:
+        managed = self._repo.get_managed_channel(channel.id)
+        if not managed:
+            return
+        try:
+            current_owner_id = int(managed["owner_user_id"])
+        except (KeyError, ValueError, TypeError):
+            return
+        if current_owner_id != owner_id:
+            return
+
+        remaining = [member for member in channel.members if not member.bot]
+        if not remaining:
+            return
+
+        new_owner = self._pick_oldest_member(channel.id, remaining)
+        if new_owner is None:
+            return
+
+        self._repo.update_managed_owner(channel.id, new_owner.id)
+        logger.info(
+            "Transferred temp channel ownership guild=%s channel=%s from=%s to=%s",
+            channel.guild.id,
+            channel.id,
+            owner_id,
+            new_owner.id,
+        )
+
+    def _pick_oldest_member(
+        self, channel_id: int, members: list[discord.Member]
+    ) -> discord.Member | None:
+        per_channel = self._join_times.get(channel_id, {})
+
+        def sort_key(member: discord.Member) -> tuple[bool, datetime]:
+            joined_at = per_channel.get(member.id)
+            if joined_at is None:
+                fallback = member.joined_at or datetime.now(UTC)
+                return (True, fallback)
+            return (False, joined_at)
+
+        return min(members, key=sort_key) if members else None
 
     async def schedule_deletion(self, channel: discord.VoiceChannel) -> None:
         if channel.id in self._delete_tasks:

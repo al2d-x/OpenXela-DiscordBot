@@ -12,6 +12,7 @@ class Settings:
     sqlite_path: str
     delete_delay_seconds: int
     log_level: str
+    dev_guild_id: int | None
 
 
 def require_discord_token(settings: Settings) -> str:
@@ -30,5 +31,10 @@ def get_settings() -> Settings:
         discord_command_prefix=os.getenv("DISCORD_COMMAND_PREFIX", "!").strip() or "!",
         sqlite_path=os.getenv("SQLITE_PATH", "data/bot.db").strip() or "data/bot.db",
         delete_delay_seconds=int(os.getenv("TEMP_DELETE_DELAY_SECONDS", "30")),
-        log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
+        log_level=os.getenv("LOG_LEVEL", "WARNING").upper(),
+        dev_guild_id=(
+            int(os.getenv("DEV_GUILD_ID", "").strip())
+            if os.getenv("DEV_GUILD_ID", "").strip()
+            else None
+        ),
     )

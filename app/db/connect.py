@@ -2,7 +2,11 @@ import sqlite3
 from pathlib import Path
 
 
-SCHEMA_PATH = Path(__file__).with_name("schema.sql")
+APP_ROOT = Path(__file__).resolve().parents[1]
+SCHEMA_PATHS = [
+    Path(__file__).with_name("schema.sql"),
+    APP_ROOT / "features" / "temp_voice" / "schema.sql",
+]
 
 
 def get_connection(db_path: str) -> sqlite3.Connection:
@@ -16,7 +20,10 @@ def init_db(db_path: str) -> None:
     db_file = Path(db_path)
     db_file.parent.mkdir(parents=True, exist_ok=True)
 
-    schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
     with get_connection(db_path) as connection:
-        connection.executescript(schema_sql)
+        for schema_path in SCHEMA_PATHS:
+            if not schema_path.exists():
+                continue
+            schema_sql = schema_path.read_text(encoding="utf-8")
+            connection.executescript(schema_sql)
         connection.commit()

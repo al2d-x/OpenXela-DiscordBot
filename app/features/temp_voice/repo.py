@@ -65,6 +65,26 @@ class TempVoiceRepository:
             return None
         return int(row["temp_category_id"])
 
+    def set_command_channel(self, guild_id: int, channel_id: int | None) -> None:
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO command_channel_config (guild_id, command_channel_id)
+                VALUES (?, ?)
+                ON CONFLICT(guild_id) DO UPDATE SET command_channel_id = excluded.command_channel_id
+                """,
+                (str(guild_id), str(channel_id) if channel_id is not None else None),
+            )
+
+    def get_command_channel(self, guild_id: int) -> int | None:
+        row = self._conn.execute(
+            "SELECT command_channel_id FROM command_channel_config WHERE guild_id = ?",
+            (str(guild_id),),
+        ).fetchone()
+        if row is None or row["command_channel_id"] is None:
+            return None
+        return int(row["command_channel_id"])
+
     def upsert_managed_channel(
         self,
         guild_id: int,
@@ -135,4 +155,3 @@ class TempVoiceRepository:
                 (str(channel_id),),
             )
         return result.rowcount > 0
-

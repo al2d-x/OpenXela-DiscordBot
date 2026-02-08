@@ -26,3 +26,8 @@ CREATE TABLE IF NOT EXISTS managed_voice_channels (
 
 CREATE INDEX IF NOT EXISTS idx_managed_voice_channels_guild_id
     ON managed_voice_channels(guild_id);
+
+CREATE TABLE IF NOT EXISTS command_channel_config (
+    guild_id TEXT PRIMARY KEY,
+    command_channel_id TEXT NULL
+);

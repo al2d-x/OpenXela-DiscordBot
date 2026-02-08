@@ -8,6 +8,7 @@ Basic administrative tasks bot for Discord.
 | --- | --- | --- |
 | Temp Voice Hubs | `!sethub`, `!unsethub`, `!listhubs` | Mark voice channels as hubs so joining them creates a temporary room and moves the user into it. |
 | Temp Voice Category | `!settempcategory`, `!cleartempcategory` | Choose which category new temp voice rooms are created under (falls back to the hub's category if unset). |
+| Command Channel Restriction | `!setcommandchannel`, `!clearcommandchannel`, `!commandchannel` | Restrict non-admin prefix commands to one text channel; admins and guild owner can run commands anywhere. |
 | Room Management | `/room name`, `/room limit`, `/room lock`, `/room unlock`, `/room transfer` | Rename, set user limit, lock/unlock, and transfer ownership of a managed temp room. Ownership auto-transfers to the oldest member when the owner leaves. |
 | Help | `!help` | Shows the bot repo and quick usage hints. |
 
@@ -22,6 +23,13 @@ Basic administrative tasks bot for Discord.
 
 - Bot: `python run_bot.py`
 - API: `python run_api.py`
+
+## Discord Portal Intents
+
+Enable these for your bot in Discord Developer Portal -> Bot -> Privileged Gateway Intents:
+
+- `SERVER MEMBERS INTENT`
+- `MESSAGE CONTENT INTENT`
 
 ## Slash Command Sync
 
@@ -48,7 +56,10 @@ Basic administrative tasks bot for Discord.
 - `!settempcategory <category>`
 - `!cleartempcategory`
 - `!listhubs`
+- `!setcommandchannel [text_channel]`
+- `!clearcommandchannel`
 
 ## General Commands
 
 - `!help`
+- `!commandchannel`

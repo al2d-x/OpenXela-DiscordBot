@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from discord.ext import commands
 import discord
 
@@ -8,6 +10,9 @@ from app.core.logging import bind_event_id, new_event_id
 from app.discord.sync import sync_commands
 from app.features.temp_voice.reconcile import ReconcileService
 from app.features.temp_voice.service import TempVoiceService
+
+
+logger = logging.getLogger(__name__)
 
 
 def register_event_handlers(
@@ -21,6 +26,15 @@ def register_event_handlers(
     async def on_ready() -> None:
         if getattr(bot, "_reconciled", False):
             return
+        if bot.user is None:
+            logger.info("Bot is ready.")
+        else:
+            logger.info(
+                "Bot is ready as %s (%s) in %s guild(s).",
+                bot.user.name,
+                bot.user.id,
+                len(bot.guilds),
+            )
         setattr(bot, "_reconciled", True)
         if not getattr(bot, "_synced", False):
             try:

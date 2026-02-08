@@ -4,15 +4,20 @@ Basic administrative tasks bot for Discord.
 
 ## Setup
 
-1. Create a .env file (see .env.example).
+1. Create `.env` from `.env.example`.
 2. Install dependencies:
 
    pip install -r requirements.txt
 
-3. Run the API:
+## Run
 
-   uvicorn main:app --reload
+- Bot: `python run_bot.py`
+- API: `python run_api.py`
 
-## Endpoints
+## Admin Commands
 
-- GET /health
+- `!sethub <voice_channel>`
+- `!unsethub <voice_channel>`
+- `!settempcategory <category>`
+- `!cleartempcategory`
+- `!listhubs`

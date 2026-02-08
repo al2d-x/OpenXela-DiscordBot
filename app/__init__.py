@@ -1,0 +1,1 @@
+"""OpenXela Discord bot package."""

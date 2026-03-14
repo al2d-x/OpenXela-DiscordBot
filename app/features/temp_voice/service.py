@@ -140,8 +140,8 @@ class TempVoiceService:
         task = self._delete_tasks.pop(channel_id, None)
         if task:
             task.cancel()
+            logger.info("Canceled scheduled delete channel=%s", channel_id)
         self._repo.set_pending_delete_at(channel_id, None)
-        logger.info("Canceled scheduled delete channel=%s", channel_id)
 
     async def _delete_after_delay(self, guild_id: int, channel_id: int) -> None:
         try:
@@ -159,7 +159,11 @@ class TempVoiceService:
 
             non_bot_count = sum(1 for member in raw_channel.members if not member.bot)
             if non_bot_count == 0:
-                await self.delete_channel_now(raw_channel, reason="Temporary channel empty")
+                await self.delete_channel_now(
+                    raw_channel,
+                    reason="Temporary channel empty",
+                    cancel_pending=False,
+                )
             else:
                 self._repo.set_pending_delete_at(channel_id, None)
         except asyncio.CancelledError:
@@ -167,9 +171,14 @@ class TempVoiceService:
         finally:
             self._delete_tasks.pop(channel_id, None)
 
-    async def delete_channel_now(self, channel: discord.VoiceChannel, reason: str) -> None:
+    async def delete_channel_now(
+        self, channel: discord.VoiceChannel, reason: str, cancel_pending: bool = True
+    ) -> None:
         channel_id = channel.id
-        self.cancel_deletion(channel_id)
+        if cancel_pending:
+            self.cancel_deletion(channel_id)
+        else:
+            self._repo.set_pending_delete_at(channel_id, None)
         try:
             await channel.delete(reason=reason)
             logger.info("Deleted temp channel guild=%s channel=%s", channel.guild.id, channel_id)

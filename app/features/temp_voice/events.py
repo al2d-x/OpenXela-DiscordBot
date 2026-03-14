@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from discord.ext import commands
@@ -24,8 +25,6 @@ def register_event_handlers(
 ) -> None:
     @bot.event
     async def on_ready() -> None:
-        if getattr(bot, "_reconciled", False):
-            return
         if bot.user is None:
             logger.info("Bot is ready.")
         else:
@@ -35,7 +34,6 @@ def register_event_handlers(
                 bot.user.id,
                 len(bot.guilds),
             )
-        setattr(bot, "_reconciled", True)
         if not getattr(bot, "_synced", False):
             try:
                 await sync_commands(bot, dev_guild_id)
@@ -43,6 +41,19 @@ def register_event_handlers(
             except discord.DiscordException:
                 pass
         await reconcile_service.reconcile()
+
+    @bot.event
+    async def on_guild_channel_delete(channel: discord.abc.GuildChannel) -> None:
+        if not isinstance(channel, discord.VoiceChannel):
+            return
+        if repo.get_managed_channel(channel.id):
+            temp_voice_service.cancel_deletion(channel.id)
+            repo.remove_managed_channel(channel.id)
+            logger.info(
+                "Cleaned managed channel after manual deletion guild=%s channel=%s",
+                channel.guild.id,
+                channel.id,
+            )
 
     @bot.event
     async def on_voice_state_update(
@@ -68,6 +79,14 @@ def register_event_handlers(
 
             if before.channel and isinstance(before.channel, discord.VoiceChannel) and before_channel_id != after_channel_id:
                 if repo.get_managed_channel(before.channel.id):
+                    channel_id = before.channel.id
                     temp_voice_service.record_member_leave(before.channel, member)
-                    await temp_voice_service.handle_owner_left(before.channel, member.id)
-                    await temp_voice_service.handle_managed_channel_activity(before.channel)
+                    # Discord member lists can be briefly stale during voice-state transitions.
+                    # Re-fetch after a short delay so empty-channel cleanup is accurate.
+                    await asyncio.sleep(1)
+                    refreshed_channel = member.guild.get_channel(channel_id)
+                    if isinstance(refreshed_channel, discord.VoiceChannel):
+                        await temp_voice_service.handle_owner_left(refreshed_channel, member.id)
+                        await temp_voice_service.handle_managed_channel_activity(refreshed_channel)
+                    else:
+                        repo.remove_managed_channel(channel_id)
